@@ -1,0 +1,38 @@
+# Auto-deploy: every push to main uploads the site to foreman.grafisify.com
+# Required repo secrets (Settings -> Secrets and variables -> Actions):
+#   FTP_HOST        e.g. ftp.grafisify.com (or the IP from your hosting panel)
+#   FTP_USERNAME    FTP account username
+#   FTP_PASSWORD    FTP account password
+#   FTP_SERVER_DIR  remote folder of the subdomain, e.g. /public_html/foreman/
+#
+# If the host rejects FTPS, change `protocol` below to `ftp`.
+
+name: Deploy to foreman.grafisify.com
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.4.0
+        with:
+          server: ${{ secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps
+          server-dir: ${{ secrets.FTP_SERVER_DIR }}
+          exclude: |
+            **/.git*
+            **/.github/**
+            DESIGN.md
+            README.md
+            .gitignore
+            foreman-shift-report.html
+            waitlist.csv

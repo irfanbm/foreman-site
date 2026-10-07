@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Foreman — The night shift, documented</title>
+<meta name="description" content="Foreman is the reliability layer for scheduled AI agents: dedup gates, checkpoint resumes, silent-failure detection, and a run report wherever you already look.">
+<style>
+  @font-face {
+    font-family: "Plus Jakarta Sans";
+    src: url("fonts/PlusJakartaSans.ttf") format("truetype");
+    font-weight: 100 900;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: "IBM Plex Mono";
+    src: url("fonts/IBMPlexMono-Regular.ttf") format("truetype");
+    font-weight: 400;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: "IBM Plex Mono";
+    src: url("fonts/IBMPlexMono-Medium.ttf") format("truetype");
+    font-weight: 500;
+    font-display: swap;
+  }
+
+  :root {
+    --bg: #0a0a0b;
+    --surface: #111214;
+    --line: rgba(255, 255, 255, 0.08);
+    --ink: #f2f2f0;
+    --muted: #9a9a96;
+    --faint: #6b6b66;
+    --accent: #ff5a1f;
+    --accent-ink: #1c0d04;
+    --amber: #f5b544;
+    --green: #34d399;
+    --red: #f87171;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+    font-size: 17px;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  ::selection { background: var(--accent); color: #fff; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+  .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+  .wrap { max-width: 1160px; margin: 0 auto; padding: 0 32px; }
+
+  .kicker {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12.5px;
+    letter-spacing: 0.22em;
+    color: var(--faint);
+    font-weight: 500;
+    margin-bottom: 20px;
+  }
+  h2.sec {
+    font-weight: 300;
+    font-size: clamp(32px, 4vw, 50px);
+    letter-spacing: -0.025em;
+    line-height: 1.12;
+    margin-bottom: 18px;
+    text-wrap: balance;
+  }
+  h2.sec b { font-weight: 700; }
+  .sec-sub { color: var(--muted); max-width: 40em; margin-bottom: 56px; font-size: 17.5px; }
+
+  /* ---------- nav ---------- */
+  .nav {
+    position: sticky; top: 0; z-index: 60;
+    background: rgba(10, 10, 11, 0.82);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--line);
+  }
+  .nav-inner { display: flex; align-items: center; height: 72px; gap: 20px; }
+  .brand { display: flex; align-items: center; gap: 11px; text-decoration: none; color: var(--ink); flex: none; }
+  .brand-mark { width: 26px; height: 26px; flex: none; display: inline-flex; }
+  .brand-name { font-weight: 800; font-size: 16px; letter-spacing: 0.12em; }
+  .brand-tag {
+    font-family: "IBM Plex Mono", monospace; font-size: 11.5px; color: var(--faint);
+    border-left: 1px solid var(--line); padding-left: 12px; margin-left: 2px; white-space: nowrap;
+  }
+  .pillnav {
+    display: flex; gap: 4px; margin: 0 auto;
+    border: 1px solid var(--line); border-radius: 999px; padding: 5px;
+    background: rgba(255, 255, 255, 0.02);
+  }
+  .pillnav a {
+    color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 600;
+    padding: 8px 18px; border-radius: 999px; white-space: nowrap;
+    transition: color 0.18s ease, background 0.18s ease;
+  }
+  .pillnav a:hover { color: var(--ink); background: rgba(255, 255, 255, 0.06); }
+  .menu-btn {
+    display: none; background: none; border: 1px solid var(--line); border-radius: 9px;
+    color: var(--ink); width: 42px; height: 42px; cursor: pointer;
+    align-items: center; justify-content: center; margin-left: auto;
+  }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 15px; border-radius: 999px;
+    padding: 13px 26px; text-decoration: none; cursor: pointer; border: none;
+    font-family: inherit; transition: transform 0.15s ease, background 0.15s ease;
+    white-space: nowrap;
+  }
+  .btn-primary { background: var(--accent); color: var(--accent-ink); }
+  .btn-primary:hover { background: #ff6c38; transform: translateY(-1px); box-shadow: 0 10px 28px rgba(255, 90, 31, 0.35); }
+  .btn-ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+  .btn-ghost:hover { border-color: rgba(255, 255, 255, 0.3); }
+  .btn-sm { padding: 10px 22px; font-size: 14px; }
+
+  /* ---------- hero ---------- */
+  .hero { position: relative; padding: 110px 0 90px; overflow: hidden; }
+  #stars { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .hero::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(ellipse 90% 60% at 50% 0%, rgba(255, 90, 31, 0.07), transparent 65%);
+  }
+  .hero-grid { position: relative; z-index: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 72px; align-items: center; }
+  .hero h1 {
+    font-weight: 300; font-size: clamp(42px, 5.4vw, 68px);
+    letter-spacing: -0.03em; line-height: 1.08; margin-bottom: 24px; text-wrap: balance;
+  }
+  .hero h1 b { font-weight: 700; }
+  .hero h1 .ac { color: var(--accent); }
+  .hero .sub { color: var(--muted); font-size: 18.5px; max-width: 30em; margin-bottom: 36px; }
+  .hero-cta { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 30px; }
+  .hero-note { font-size: 14px; color: var(--faint); }
+  .hero-note .mono { color: var(--muted); }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 40px 90px rgba(0, 0, 0, 0.5);
+  }
+  .tabs { display: flex; border-bottom: 1px solid var(--line); position: relative; }
+  .tab {
+    flex: 1; background: none; border: none; cursor: pointer;
+    font-family: "IBM Plex Mono", monospace; font-size: 12.5px; letter-spacing: 0.06em;
+    color: var(--faint); padding: 15px 8px;
+    transition: color 0.2s ease;
+  }
+  .tab:hover { color: var(--muted); }
+  .tab[aria-selected="true"] { color: var(--accent); }
+  .tab-ind {
+    position: absolute; bottom: -1px; height: 2px; background: var(--accent);
+    transition: left 0.32s cubic-bezier(0.3, 1, 0.4, 1), width 0.32s cubic-bezier(0.3, 1, 0.4, 1);
+    border-radius: 2px;
+  }
+  .tabpane { display: none; padding: 10px 14px 8px; }
+  .tabpane.active { display: block; }
+  .prow {
+    display: grid; grid-template-columns: 54px 1fr auto; gap: 14px; align-items: center;
+    padding: 12px 10px; border-bottom: 1px dashed rgba(255, 255, 255, 0.07);
+    font-size: 14px; border-radius: 8px;
+    transition: background 0.16s ease;
+  }
+  .prow:hover { background: rgba(255, 255, 255, 0.04); }
+  .prow:last-child { border-bottom: none; }
+  .prow .t { color: var(--faint); font-size: 12.5px; }
+  .prow .s { font-weight: 600; }
+  .ps { font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 700; white-space: nowrap; }
+  .ps.ok { color: var(--green); } .ps.warn { color: var(--amber); } .ps.bad { color: var(--red); }
+  .panel-foot {
+    display: flex; gap: 20px; padding: 16px 24px; border-top: 1px solid var(--line);
+    font-size: 13px; color: var(--muted);
+  }
+  .panel-foot b { color: var(--ink); }
+
+  /* ---------- marquee ---------- */
+  .ticker { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); overflow: hidden; background: rgba(255,255,255,0.015); }
+  .ticker:hover .ticker-track { animation-play-state: paused; }
+  .ticker-track { display: flex; width: max-content; animation: tick 36s linear infinite; }
+  .ticker span {
+    font-family: "IBM Plex Mono", monospace; font-size: 13px; color: var(--faint);
+    padding: 15px 0; white-space: nowrap;
+  }
+  .ticker .sep { color: var(--accent); padding: 15px 26px; }
+  @keyframes tick { to { transform: translateX(-50%); } }
+
+  /* ---------- sections ---------- */
+  section.block { padding: 104px 0; }
+  .hairline { border: none; border-top: 1px solid var(--line); margin: 0; }
+
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+  .card { padding: 38px 36px; border-bottom: 1px solid var(--line); transition: transform 0.25s ease, background 0.25s ease, border-color 0.25s ease; }
+  .card:hover { transform: translateY(-4px); background: rgba(255, 255, 255, 0.018); }
+  .card:hover .num { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .card:nth-child(odd) { border-right: 1px solid var(--line); }
+  .card:nth-last-child(-n+2) { border-bottom: none; }
+  .card .path { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; color: var(--faint); letter-spacing: 0.04em; margin-bottom: 22px; }
+  .card .num {
+    font-family: "IBM Plex Mono", monospace; font-size: 12.5px; color: var(--accent);
+    border: 1px solid rgba(255, 90, 31, 0.4); border-radius: 6px;
+    display: inline-block; padding: 3px 10px; margin-bottom: 20px;
+    transition: background 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+  }
+  .card h3 { font-size: 21px; font-weight: 700; letter-spacing: -0.015em; margin-bottom: 10px; }
+  .card p { color: var(--muted); font-size: 16px; }
+  .card p b { color: var(--ink); }
+
+  .logrow { display: grid; grid-template-columns: 120px 1fr; gap: 36px; padding: 44px 28px; margin: 0 -28px; border-bottom: 1px solid var(--line); border-radius: 14px; transition: background 0.25s ease; }
+  .logrow:first-of-type { border-top: 1px solid var(--line); }
+  .logrow:hover { background: rgba(255, 255, 255, 0.018); }
+  .logrow .when { font-family: "IBM Plex Mono", monospace; font-size: 13px; color: var(--faint); padding-top: 8px; }
+  .logrow .when b { display: block; color: var(--ink); font-size: 20px; font-weight: 500; margin-bottom: 6px; transition: color 0.25s ease; }
+  .logrow:hover .when b { color: var(--accent); }
+  .logrow h3 { font-weight: 300; font-size: clamp(24px, 2.8vw, 34px); letter-spacing: -0.02em; line-height: 1.2; margin-bottom: 14px; text-wrap: balance; }
+  .logrow h3 b { font-weight: 700; }
+  .logrow h3 .ac { color: var(--accent); }
+  .logrow p { color: var(--muted); max-width: 42em; margin-bottom: 12px; }
+  .logrow p b { color: var(--ink); }
+  .logrow p:last-child { margin-bottom: 0; }
+
+  .staff { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; margin-bottom: 28px; }
+  .member { padding: 34px 32px; border-right: 1px solid var(--line); transition: background 0.25s ease; }
+  .member:hover { background: rgba(255, 255, 255, 0.018); }
+  .member:last-child { border-right: none; background: rgba(255, 90, 31, 0.045); }
+  .member .who { font-weight: 700; font-size: 18px; margin-bottom: 8px; letter-spacing: -0.01em; }
+  .member .who .tag {
+    font-family: "IBM Plex Mono", monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+    color: var(--accent); border: 1px solid rgba(255, 90, 31, 0.45); border-radius: 999px;
+    padding: 3px 11px; margin-left: 10px; vertical-align: 2px;
+  }
+  .member p { color: var(--muted); font-size: 15.5px; }
+  .member p b { color: var(--ink); }
+
+  .codeblock { background: #0d0d0f; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; max-width: 720px; }
+  .codehead {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 13px 22px; border-bottom: 1px solid var(--line);
+    font-family: "IBM Plex Mono", monospace; font-size: 12.5px; color: var(--faint);
+  }
+  .copybtn {
+    background: none; border: 1px solid var(--line); border-radius: 8px; color: var(--muted);
+    font-family: "IBM Plex Mono", monospace; font-size: 12px; padding: 7px 14px; cursor: pointer;
+  }
+  .copybtn:hover { color: var(--ink); border-color: rgba(255,255,255,0.25); }
+  .codeblock pre { padding: 24px 26px; overflow-x: auto; font-family: "IBM Plex Mono", monospace; font-size: 14px; line-height: 1.75; color: #c9c9c4; }
+  .tok-k { color: var(--accent); } .tok-s { color: var(--amber); } .tok-p { color: var(--faint); }
+
+  .cover-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center; }
+  .field { display: flex; gap: 10px; margin-top: 8px; }
+  .field input {
+    flex: 1; min-width: 0; background: var(--surface); border: 1px solid var(--line);
+    border-radius: 999px; color: var(--ink); padding: 14px 22px;
+    font-size: 15.5px; font-family: inherit;
+  }
+  .field input::placeholder { color: var(--faint); }
+  .field input:focus { border-color: var(--accent); outline: none; }
+  .flabel { font-family: "IBM Plex Mono", monospace; font-size: 12px; letter-spacing: 0.18em; color: var(--faint); display: block; margin-bottom: 12px; }
+  .form-msg { font-size: 14px; margin-top: 12px; min-height: 22px; color: var(--muted); }
+  .form-msg.err { color: var(--red); }
+  .form-ok { border: 1px solid rgba(52, 211, 153, 0.35); background: rgba(52, 211, 153, 0.08); border-radius: 14px; padding: 24px; }
+  .form-ok b { display: block; margin-bottom: 6px; font-size: 17px; }
+  .form-ok span { color: var(--muted); font-size: 15px; }
+
+  footer { border-top: 1px solid var(--line); padding: 48px 0 56px; }
+  .foot-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+  .foot-brand p { color: var(--faint); font-size: 14.5px; margin-top: 14px; max-width: 26em; }
+  .foot-links { display: flex; gap: 28px; justify-content: flex-end; align-items: flex-start; flex-wrap: wrap; }
+  .foot-links a { color: var(--muted); text-decoration: none; font-size: 14.5px; font-weight: 600; transition: color 0.18s ease; }
+  .foot-links a:hover { color: var(--ink); }
+
+  .rv { opacity: 0; transform: translateY(14px); }
+  .rv.in { opacity: 1; transform: none; transition: opacity 0.55s ease, transform 0.55s ease; }
+  @media (prefers-reduced-motion: reduce) {
+    .rv { opacity: 1; transform: none; }
+    .ticker-track { animation: none; }
+    html { scroll-behavior: auto; }
+  }
+
+  @media (max-width: 960px) {
+    .hero-grid { grid-template-columns: 1fr; gap: 56px; }
+    .hero { padding: 76px 0 64px; }
+    .pillnav { display: none; position: absolute; top: 72px; left: 0; right: 0; margin: 0; border-radius: 0; border-left: none; border-right: none; flex-direction: column; padding: 12px 24px 18px; background: #0c0c0d; }
+    .pillnav.open { display: flex; }
+    .pillnav a { padding: 11px 4px; }
+    .menu-btn { display: inline-flex; }
+    .nav-cta { display: none; }
+    .cards { grid-template-columns: 1fr; }
+    .card { border-right: none !important; }
+    .card:nth-last-child(-n+2) { border-bottom: 1px solid var(--line); }
+    .card:last-child { border-bottom: none; }
+    .logrow { grid-template-columns: 1fr; gap: 12px; }
+    .staff { grid-template-columns: 1fr; }
+    .member { border-right: none; border-bottom: 1px solid var(--line); }
+    .member:last-child { border-bottom: none; }
+    .cover-grid { grid-template-columns: 1fr; gap: 36px; }
+    .field { flex-direction: column; }
+    .field .btn { width: 100%; }
+    section.block { padding: 72px 0; }
+    .foot-grid { grid-template-columns: 1fr; }
+    .foot-links { justify-content: flex-start; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="nav" aria-label="Main">
+  <div class="wrap nav-inner">
+    <a class="brand" href="#top" aria-label="Foreman home">
+      <span class="brand-mark" aria-hidden="true">
+        <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
+          <path d="M13 2v22M2 13h22M5.5 5.5l15 15M20.5 5.5l-15 15" stroke="#ff5a1f" stroke-width="2.6" stroke-linecap="round"/>
+        </svg>
+      </span>
+      <span class="brand-name">FOREMAN</span>
+      <span class="brand-tag">Waitlist open</span>
+    </a>
+    <button class="menu-btn" id="menuBtn" aria-expanded="false" aria-controls="pillnav" aria-label="Toggle menu">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path d="M3 6h14M3 10h14M3 14h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+    </button>
+    <div class="pillnav" id="pillnav">
+      <a href="#gates">Gates</a>
+      <a href="#log">Log</a>
+      <a href="#staffing">Staffing</a>
+      <a href="#coverage">Coverage</a>
+    </div>
+    <a href="#coverage" class="btn btn-primary btn-sm nav-cta">Request coverage</a>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <canvas id="stars" aria-hidden="true"></canvas>
+  <div class="wrap hero-grid">
+    <div>
+      <p class="kicker rv">RELIABILITY FOR SCHEDULED AGENTS</p>
+      <h1 class="rv">The night shift, <b>documented.</b></h1>
+      <p class="sub rv">Foreman is the reliability layer for scheduled AI agents. Dedup gates, retries that resume from the last checkpoint, silent-failure detection, and a run report sent wherever you already look.</p>
+      <div class="hero-cta rv">
+        <a class="btn btn-primary" href="#coverage">Request coverage</a>
+        <a class="btn btn-ghost" href="#log">Read the log</a>
+      </div>
+      <p class="hero-note rv">Built on the Claude API. <span class="mono">Tool use · MCP · scheduled runs</span></p>
+    </div>
+    <div class="panel rv" aria-label="Example run panel">
+      <div class="tabs" role="tablist" aria-label="Run views">
+        <button class="tab" role="tab" aria-selected="true" data-tab="t-log" id="tab-t-log">run #4821 · log</button>
+        <button class="tab" role="tab" aria-selected="false" data-tab="t-gates" id="tab-t-gates">gates</button>
+        <button class="tab" role="tab" aria-selected="false" data-tab="t-report" id="tab-t-report">report</button>
+      </div>
+      <div class="tabpane active" id="t-log" role="tabpanel" aria-labelledby="tab-t-log">
+        <div class="prow"><span class="t mono">06:00</span><span class="s">Schedule fired</span><span class="ps ok">ok</span></div>
+        <div class="prow"><span class="t mono">06:01</span><span class="s">Dedup gate passed</span><span class="ps ok">ok</span></div>
+        <div class="prow"><span class="t mono">06:06</span><span class="s">Draft written, checkpoint saved</span><span class="ps ok">ok</span></div>
+        <div class="prow"><span class="t mono">06:11</span><span class="s">Render failed, retrying</span><span class="ps warn">retry</span></div>
+        <div class="prow"><span class="t mono">06:13</span><span class="s">Resumed from checkpoint</span><span class="ps ok">ok</span></div>
+        <div class="prow"><span class="t mono">06:18</span><span class="s">Posted to 3 channels</span><span class="ps ok">ok</span></div>
+      </div>
+      <div class="tabpane" id="t-gates" role="tabpanel" aria-labelledby="tab-t-gates">
+        <div class="prow"><span class="t mono">gate</span><span class="s">Dedup registry check</span><span class="ps ok">passed</span></div>
+        <div class="prow"><span class="t mono">gate</span><span class="s">Checkpoint write</span><span class="ps ok">passed</span></div>
+        <div class="prow"><span class="t mono">gate</span><span class="s">Channel health check</span><span class="ps ok">passed</span></div>
+        <div class="prow"><span class="t mono">gate</span><span class="s">Duplicate topic refused</span><span class="ps warn">held</span></div>
+        <div class="prow"><span class="t mono">gate</span><span class="s">Post landing verified</span><span class="ps ok">passed</span></div>
+      </div>
+      <div class="tabpane" id="t-report" role="tabpanel" aria-labelledby="tab-t-report">
+        <div class="prow"><span class="t mono">runs</span><span class="s">Completed</span><span class="ps ok">12</span></div>
+        <div class="prow"><span class="t mono">retry</span><span class="s">Resumed, not replayed</span><span class="ps warn">1</span></div>
+        <div class="prow"><span class="t mono">held</span><span class="s">Duplicates refused</span><span class="ps ok">1</span></div>
+        <div class="prow"><span class="t mono">fail</span><span class="s">Silent failures</span><span class="ps ok">0</span></div>
+        <div class="prow"><span class="t mono">need</span><span class="s">Messages needing you</span><span class="ps ok">0</span></div>
+      </div>
+      <div class="panel-foot mono"><span><b>1</b> retry</span><span><b>0</b> duplicates posted</span><span><b>18</b> min</span></div>
+    </div>
+  </div>
+</header>
+
+<div class="ticker" aria-hidden="true">
+  <div class="ticker-track" id="tickerTrack">
+    <span>06:00 schedule fired</span><span class="sep">✳</span><span>dedup gate passed</span><span class="sep">✳</span><span>checkpoint saved</span><span class="sep">✳</span><span>retry resumed from step 4</span><span class="sep">✳</span><span>duplicate held</span><span class="sep">✳</span><span>0 silent failures</span><span class="sep">✳</span><span>report sent</span><span class="sep">✳</span>
+  </div>
+</div>
+
+<main>
+  <section class="block" id="gates" aria-labelledby="gates-h">
+    <div class="wrap">
+      <p class="kicker rv">WHAT IS INSIDE</p>
+      <h2 class="sec rv" id="gates-h">Four gates between your agent <b>and the publish button.</b></h2>
+      <p class="sec-sub rv">Deterministic code, not prompt instructions. A gate either passes or the run stops.</p>
+      <div class="cards">
+        <div class="card rv">
+          <p class="path">gate/dedup</p>
+          <span class="num">01</span>
+          <h3>Dedup gate</h3>
+          <p>Every planned topic is checked against the publish registry <b>before</b> the agent spends a token. A repeat never leaves the building.</p>
+        </div>
+        <div class="card rv">
+          <p class="path">gate/checkpoint</p>
+          <span class="num">02</span>
+          <h3>Checkpoint resume</h3>
+          <p>Each step writes its output as it finishes. <b>A retry picks up at the failed step</b> instead of replaying the run from the top.</p>
+        </div>
+        <div class="card rv">
+          <p class="path">gate/channel</p>
+          <span class="num">03</span>
+          <h3>Silent-failure detection</h3>
+          <p>After posting, Foreman <b>verifies the post actually landed</b> on every channel. No landing, no silence: you get told, with the channel name.</p>
+        </div>
+        <div class="card rv">
+          <p class="path">gate/report</p>
+          <span class="num">04</span>
+          <h3>Run reports</h3>
+          <p>Every run ends with a short summary sent <b>where you already look</b>. If nothing needed you, it says so in one line and stays out of your way.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="hairline">
+
+  <section class="block" id="log" aria-labelledby="log-h">
+    <div class="wrap">
+      <p class="kicker rv">THE LOG</p>
+      <h2 class="sec rv" id="log-h">One night, <b>three entries.</b></h2>
+      <p class="sec-sub rv">Scheduling an agent is the easy part. Every failure below happened to a real content fleet, and none of them raised an error.</p>
+      <div>
+        <div class="logrow rv">
+          <div class="when"><b>02:14</b>INCIDENT · RETRY</div>
+          <div>
+            <h3>Render failed at 02:14. <span class="ac">The retry did not start over.</span></h3>
+            <p>Step 4 of 7 died on a transient error. The old way replays steps 1 through 3. Foreman resumed at step 4, because <b>every finished step had already written its checkpoint</b>.</p>
+          </div>
+        </div>
+        <div class="logrow rv">
+          <div class="when"><b>03:40</b>GATE · HELD</div>
+          <div>
+            <h3>The same topic, three days apart. <span class="ac">Held at the gate.</span></h3>
+            <p>The agent planned "Soto Ayam Lamongan" again. The registry showed it ran three days earlier, so the dedup gate refused it <b>before a single token was spent</b> on the repeat. Eyeballing history does not scale. A hard gate does.</p>
+          </div>
+        </div>
+        <div class="logrow rv">
+          <div class="when"><b>05:12</b>CHECK · WARN</div>
+          <div>
+            <h3>Instagram authorization had lapsed. <span class="ac">Nothing errored.</span></h3>
+            <p>Foreman health-checks every channel before the run. At 05:12 it found the Instagram channel down and reported it, instead of letting the 06:00 post <b>silently never go out</b>. The channel was reconnected before breakfast. The audience never noticed.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="hairline">
+
+  <section class="block" id="staffing" aria-labelledby="staff-h">
+    <div class="wrap">
+      <p class="kicker rv">HOW IT IS STAFFED</p>
+      <h2 class="sec rv" id="staff-h">Three layers, <b>one job.</b></h2>
+      <p class="sec-sub rv">The skill gets you started, the MCP server plugs into your agent, the hosted service does the heavy lifting. Only the last one is paid.</p>
+      <div class="staff">
+        <div class="member rv">
+          <p class="who">Skill <span class="tag">FREE</span></p>
+          <p>The playbook. Teaches any agent the reliability patterns: gates, checkpoints, idempotent side effects. <b>Distribution, not the product.</b></p>
+        </div>
+        <div class="member rv">
+          <p class="who">MCP server</p>
+          <p>The sidearm. Your agent calls Foreman tools directly: check the dedup registry, write a checkpoint, file a run report. <b>Works with any agent client that speaks MCP.</b></p>
+        </div>
+        <div class="member rv">
+          <p class="who">Hosted service <span class="tag">PAID</span></p>
+          <p>The engine. Scheduling, execution, metering, and the report channel. <b>The part you pay for</b>, per run, with nothing to self-host.</p>
+        </div>
+      </div>
+      <div class="codeblock rv">
+        <div class="codehead"><span>mcp-config.json</span><button class="copybtn" id="copyBtn">Copy</button></div>
+<pre><span class="tok-p">{</span>
+  <span class="tok-k">"mcpServers"</span><span class="tok-p">:</span> <span class="tok-p">{</span>
+    <span class="tok-k">"foreman"</span><span class="tok-p">:</span> <span class="tok-p">{</span>
+      <span class="tok-k">"url"</span><span class="tok-p">:</span> <span class="tok-s">"https://foreman.grafisify.com/mcp"</span><span class="tok-p">,</span>
+      <span class="tok-k">"headers"</span><span class="tok-p">:</span> <span class="tok-p">{</span> <span class="tok-k">"Authorization"</span><span class="tok-p">:</span> <span class="tok-s">"Bearer $FOREMAN_KEY"</span> <span class="tok-p">}</span>
+    <span class="tok-p">}</span>
+  <span class="tok-p">}</span>
+<span class="tok-p">}</span></pre>
+      </div>
+      <!-- subdomain above is a placeholder: point it at the real one before launch -->
+    </div>
+  </section>
+
+  <hr class="hairline">
+
+  <section class="block" id="coverage" aria-labelledby="cov-h">
+    <div class="wrap cover-grid">
+      <div>
+        <p class="kicker rv">GET COVERAGE</p>
+        <h2 class="sec rv" id="cov-h">First slots <b>open soon.</b></h2>
+        <p class="sec-sub rv" style="margin-bottom:0">Put Foreman on your night shift. Leave a work email and we will write when your slot opens. One email, no newsletter.</p>
+      </div>
+      <div class="rv">
+        <!-- posts to subscribe.php (upload it next to index.html, fill in the Telegram constants there) -->
+        <form id="covForm" novalidate>
+          <label for="email" class="flabel">WORK EMAIL</label>
+          <div class="field">
+            <input type="email" id="email" name="email" placeholder="you@company.com" autocomplete="email" required aria-describedby="formMsg">
+            <button type="submit" class="btn btn-primary">Request coverage</button>
+          </div>
+          <p class="form-msg" id="formMsg" role="alert"></p>
+        </form>
+        <div class="form-ok" id="formOk" hidden>
+          <b>Request filed.</b>
+          <span>Watch your inbox. We will write when your slot opens.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap foot-grid">
+    <div class="foot-brand">
+      <a class="brand" href="#top" aria-label="Foreman home">
+        <span class="brand-mark" aria-hidden="true">
+          <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
+            <path d="M13 2v22M2 13h22M5.5 5.5l15 15M20.5 5.5l-15 15" stroke="#ff5a1f" stroke-width="2.6" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span class="brand-name">FOREMAN</span>
+      </a>
+      <p>Reliability for scheduled agents. Built on the Claude API.</p>
+    </div>
+    <div class="foot-links">
+      <a href="#gates">Gates</a>
+      <a href="#log">Log</a>
+      <a href="#staffing">Staffing</a>
+      <a href="#coverage">Coverage</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  var FORM_ENDPOINT = "subscribe.php"; // waitlist endpoint (upload subscribe.php next to index.html)
+  var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* marquee: duplicate once for a seamless -50% loop */
+  (function ticker() {
+    var track = document.getElementById("tickerTrack");
+    track.innerHTML += track.innerHTML;
+  })();
+
+  /* constellation: faint agent-graph drift behind the hero */
+  (function stars() {
+    var cv = document.getElementById("stars");
+    var hero = cv.parentElement;
+    var mouse = { x: -9999, y: -9999 };
+    hero.addEventListener("pointermove", function (ev) {
+      var r = cv.getBoundingClientRect();
+      mouse.x = ev.clientX - r.left;
+      mouse.y = ev.clientY - r.top;
+    });
+    hero.addEventListener("pointerleave", function () {
+      mouse.x = -9999; mouse.y = -9999;
+    });
+    function size() {
+      cv.width = hero.offsetWidth;
+      cv.height = hero.offsetHeight;
+    }
+    size();
+    var ctx = cv.getContext("2d");
+    var N = Math.min(90, Math.floor(cv.width / 16));
+    var pts = [];
+    for (var i = 0; i < N; i++) {
+      pts.push({
+        x: Math.random() * cv.width,
+        y: Math.random() * cv.height,
+        vx: (Math.random() - 0.5) * 0.22,
+        vy: (Math.random() - 0.5) * 0.22,
+        r: Math.random() * 1.4 + 0.4
+      });
+    }
+    function frame() {
+      ctx.clearRect(0, 0, cv.width, cv.height);
+      var j, k, dx, dy, d;
+      for (j = 0; j < pts.length; j++) {
+        var p = pts[j];
+        if (!reduceMotion) {
+          p.x += p.vx; p.y += p.vy;
+          /* gentle repel around the cursor */
+          var mdx = p.x - mouse.x, mdy = p.y - mouse.y;
+          var md = Math.sqrt(mdx * mdx + mdy * mdy);
+          if (md < 150 && md > 0.1) {
+            var f = (150 - md) / 150 * 0.9;
+            p.x += (mdx / md) * f;
+            p.y += (mdy / md) * f;
+          }
+          if (p.x < 0 || p.x > cv.width) p.vx *= -1;
+          if (p.y < 0 || p.y > cv.height) p.vy *= -1;
+        }
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, 6.2832);
+        ctx.fillStyle = "rgba(255,255,255,0.28)";
+        ctx.fill();
+      }
+      for (j = 0; j < pts.length; j++) {
+        for (k = j + 1; k < pts.length; k++) {
+          dx = pts[j].x - pts[k].x; dy = pts[j].y - pts[k].y;
+          d = Math.sqrt(dx * dx + dy * dy);
+          if (d < 130) {
+            /* lines near the cursor glow a little warmer */
+            var mx = (pts[j].x + pts[k].x) / 2 - mouse.x;
+            var my = (pts[j].y + pts[k].y) / 2 - mouse.y;
+            var mdd = Math.sqrt(mx * mx + my * my);
+            var boost = mdd < 160 ? (1 - mdd / 160) * 0.22 : 0;
+            ctx.beginPath();
+            ctx.moveTo(pts[j].x, pts[j].y);
+            ctx.lineTo(pts[k].x, pts[k].y);
+            ctx.strokeStyle = "rgba(255,90,31," + (0.10 * (1 - d / 130) + boost).toFixed(3) + ")";
+            ctx.lineWidth = 1;
+            ctx.stroke();
+          }
+        }
+      }
+      if (!reduceMotion && !document.hidden) requestAnimationFrame(frame);
+    }
+    frame();
+    window.addEventListener("resize", function () { size(); if (reduceMotion) frame(); });
+    document.addEventListener("visibilitychange", function () { if (!document.hidden && !reduceMotion) frame(); });
+  })();
+
+  /* scroll reveal */
+  var els = document.querySelectorAll(".rv");
+  if ("IntersectionObserver" in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
+      });
+    }, { threshold: 0.12 });
+    els.forEach(function (el) { io.observe(el); });
+  } else {
+    els.forEach(function (el) { el.classList.add("in"); });
+  }
+
+  /* hero panel tabs + sliding indicator */
+  var tabs = document.querySelectorAll(".tab");
+  var tablist = document.querySelector(".tabs");
+  var ind = document.createElement("span");
+  ind.className = "tab-ind";
+  ind.setAttribute("aria-hidden", "true");
+  tablist.appendChild(ind);
+  function placeInd(tab) {
+    ind.style.left = tab.offsetLeft + "px";
+    ind.style.width = tab.offsetWidth + "px";
+  }
+  function selectTab(tab) {
+    tabs.forEach(function (t) {
+      t.setAttribute("aria-selected", "false");
+      document.getElementById(t.dataset.tab).classList.remove("active");
+    });
+    tab.setAttribute("aria-selected", "true");
+    document.getElementById(tab.dataset.tab).classList.add("active");
+    placeInd(tab);
+  }
+  tabs.forEach(function (tab) {
+    tab.addEventListener("click", function () { selectTab(tab); });
+  });
+  window.addEventListener("resize", function () {
+    var cur = document.querySelector('.tab[aria-selected="true"]');
+    if (cur) placeInd(cur);
+  });
+  if (!reduceMotion) {
+    /* wait a tick so fonts/layout settle before measuring */
+    setTimeout(function () {
+      var cur = document.querySelector('.tab[aria-selected="true"]');
+      if (cur) placeInd(cur);
+    }, 60);
+  } else {
+    var cur0 = document.querySelector('.tab[aria-selected="true"]');
+    if (cur0) placeInd(cur0);
+  }
+
+  /* copy MCP config */
+  var copyBtn = document.getElementById("copyBtn");
+  copyBtn.addEventListener("click", function () {
+    var code = document.querySelector(".codeblock pre").innerText;
+    function done() {
+      copyBtn.textContent = "Copied";
+      setTimeout(function () { copyBtn.textContent = "Copy"; }, 1600);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(code).then(done, done);
+    } else {
+      var ta = document.createElement("textarea");
+      ta.value = code;
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand("copy"); } catch (e) {}
+      document.body.removeChild(ta);
+      done();
+    }
+  });
+
+  /* mobile menu */
+  var btn = document.getElementById("menuBtn");
+  var nav = document.getElementById("pillnav");
+  function closeMenu() { nav.classList.remove("open"); btn.setAttribute("aria-expanded", "false"); }
+  btn.addEventListener("click", function () {
+    var open = nav.classList.toggle("open");
+    btn.setAttribute("aria-expanded", String(open));
+  });
+  document.addEventListener("keydown", function (ev) { if (ev.key === "Escape") closeMenu(); });
+  nav.addEventListener("click", function (ev) { if (ev.target.closest("a")) closeMenu(); });
+
+  /* waitlist form */
+  var form = document.getElementById("covForm");
+  var email = document.getElementById("email");
+  var msg = document.getElementById("formMsg");
+  var ok = document.getElementById("formOk");
+  form.addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    var v = email.value.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) {
+      msg.textContent = "That email does not look right. Try again?";
+      msg.className = "form-msg err";
+      email.focus();
+      return;
+    }
+    msg.textContent = "";
+    msg.className = "form-msg";
+    if (FORM_ENDPOINT) {
+      fetch(FORM_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: v })
+      }).then(showOk, showOk);
+    } else {
+      showOk();
+    }
+  });
+  function showOk() { form.hidden = true; ok.hidden = false; }
+})();
+</script>
+</body>
+</html>

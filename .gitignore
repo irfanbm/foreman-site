@@ -1,0 +1,5 @@
+# Waitlist signups (contains user emails, never commit)
+waitlist.csv
+# Single-file preview build (regenerable, not deployed)
+foreman-shift-report.html
+.DS_Store
