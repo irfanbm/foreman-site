@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Foreman — The night shift, documented</title>
 <meta name="description" content="Foreman is the reliability layer for scheduled AI agents: dedup gates, checkpoint resumes, silent-failure detection, and a run report wherever you already look.">
+<link rel="preload" href="fonts/PlusJakartaSans.ttf" as="font" type="font/ttf" crossorigin>
+<link rel="preload" href="fonts/IBMPlexMono-Regular.ttf" as="font" type="font/ttf" crossorigin>
 <style>
   @font-face {
     font-family: "Plus Jakarta Sans";
@@ -118,6 +120,27 @@
   .btn-ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
   .btn-ghost:hover { border-color: rgba(255, 255, 255, 0.3); }
   .btn-sm { padding: 10px 22px; font-size: 14px; }
+
+  /* ---------- loading veil: skeleton until fonts are ready ---------- */
+  #veil {
+    position: fixed; inset: 0; z-index: 200; background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    transition: opacity 0.45s ease;
+  }
+  #veil.gone { opacity: 0; pointer-events: none; }
+  .veil-inner { width: min(560px, 78vw); }
+  .sk {
+    border-radius: 8px; margin-bottom: 18px;
+    background: linear-gradient(100deg, rgba(255,255,255,0.05) 40%, rgba(255,255,255,0.11) 50%, rgba(255,255,255,0.05) 60%);
+    background-size: 200% 100%;
+    animation: sk-shimmer 1.4s linear infinite;
+  }
+  .sk-kicker { width: 42%; height: 14px; }
+  .sk-h1 { width: 92%; height: 54px; }
+  .sk-h1.short { width: 62%; height: 54px; }
+  .sk-sub { width: 78%; height: 18px; }
+  .sk-cta { width: 36%; height: 44px; border-radius: 999px; margin-bottom: 0; }
+  @keyframes sk-shimmer { to { background-position: -200% 0; } }
 
   /* ---------- hero ---------- */
   .hero { position: relative; padding: 110px 0 90px; overflow: hidden; }
@@ -320,6 +343,8 @@
     .orb { display: none; }
     .hero h1 .wi { transform: none; }
     .hero.loaded .panel .prow { animation: none; }
+    .sk { animation: none; }
+    #veil { display: none; }
   }
 
   @media (max-width: 960px) {
@@ -348,6 +373,16 @@
 </style>
 </head>
 <body>
+<div id="veil" aria-hidden="true">
+  <div class="veil-inner">
+    <div class="sk sk-kicker"></div>
+    <div class="sk sk-h1"></div>
+    <div class="sk sk-h1 short"></div>
+    <div class="sk sk-sub"></div>
+    <div class="sk sk-cta"></div>
+  </div>
+</div>
+<noscript><style>#veil { display: none; }</style></noscript>
 
 <nav class="nav" aria-label="Main">
   <div class="wrap nav-inner">
@@ -709,11 +744,13 @@
         r.style.animationDelay = (0.4 + (i % 8) * 0.09) + "s";
       });
     }
-    setTimeout(function () {
+    /* the hero entrance waits for fonts (see veil below) so the
+       word-stagger never reflows mid-animation */
+    window.__foremanHeroReady = function () {
       hero.classList.add("loaded");
       /* after the entrance, rows must appear instantly on tab switches */
       setTimeout(function () { hero.classList.add("settled"); }, 1800);
-    }, 80);
+    };
     window.addEventListener("resize", function () { size(); if (reduceMotion) frame(); });
     document.addEventListener("visibilitychange", function () { if (!document.hidden && !reduceMotion) frame(); });
   })();
@@ -799,6 +836,34 @@
       })();
     }
     later(playCycle, 900);
+  })();
+
+  /* loading veil: hold the skeleton until the hero fonts are actually
+     loaded (kills the FOUT glitch), then reveal and start the hero
+     entrance. Never hangs: hard fallback after 2.6s. */
+  (function veil() {
+    var done = false;
+    function go() {
+      if (done) return; done = true;
+      var v = document.getElementById("veil");
+      if (v) v.classList.add("gone");
+      setTimeout(function () {
+        var x = document.getElementById("veil");
+        if (x) x.remove();
+      }, 600);
+      if (window.__foremanHeroReady) window.__foremanHeroReady();
+    }
+    var fallback = setTimeout(go, 2600);
+    function ready() { clearTimeout(fallback); go(); }
+    if (document.fonts && document.fonts.load) {
+      Promise.all([
+        document.fonts.load('400 16px "Plus Jakarta Sans"'),
+        document.fonts.load('400 12px "IBM Plex Mono"'),
+        document.fonts.load('500 12px "IBM Plex Mono"')
+      ]).then(ready, ready);
+    } else {
+      window.addEventListener("load", ready);
+    }
   })();
 
   /* scroll reveal */

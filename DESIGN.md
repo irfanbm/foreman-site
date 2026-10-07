@@ -71,6 +71,14 @@ ENERGY 2 / RHYTHM 2 / MOTION 2.
   marquee. Respects prefers-reduced-motion (canvas static, glow/orbs off,
   entrances instant).
 
+## Loading
+- Fonts are preloaded; a skeleton veil holds the viewport until the
+  hero fonts actually load (explicit `document.fonts.load()`, hard
+  fallback 2.6s), then fades and the hero entrance starts. This kills
+  the FOUT reflow glitch where the word-stagger measured fallback-font
+  widths. No-JS gets no veil. Parallax was deliberately skipped: it
+  adds render work, it doesn't fix load weight.
+
 ## Copy rules
 
 No em dashes (R-02). No buzzwords (R-16). CTA: "Request coverage".
