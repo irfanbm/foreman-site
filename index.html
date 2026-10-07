@@ -218,6 +218,8 @@
   .tabpane.active { display: block; }
   /* log section tabs sit flush above the entries */
   #log .tabs { margin: 36px 0 2px; }
+  #log .tab { flex: none; text-align: left; padding: 15px 0; margin-right: 56px; }
+  #log .tab:last-of-type { margin-right: 0; }
   #log .tabpane { padding: 0; }
   .prow {
     display: grid; grid-template-columns: 54px 1fr auto; gap: 14px; align-items: center;
@@ -353,6 +355,9 @@
   @media (max-width: 960px) {
     .hero-grid { grid-template-columns: 1fr; gap: 56px; }
     .hero { padding: 76px 0 64px; }
+    #log .tab { margin-right: 28px; }
+    #log .tabs { overflow-x: auto; scrollbar-width: none; }
+    #log .tabs::-webkit-scrollbar { display: none; }
     .pillnav { display: none; position: absolute; top: 72px; left: 0; right: 0; margin: 0; border-radius: 0; border-left: none; border-right: none; flex-direction: column; padding: 12px 24px 18px; background: #0c0c0d; }
     .pillnav.open { display: flex; }
     .pillnav a { padding: 11px 4px; }
