@@ -1,16 +1,18 @@
 <?php
 // Foreman waitlist endpoint.
-// Upload alongside index.html, then set FORM_ENDPOINT = "subscribe.php" in index.html.
-// Fill in the two constants below. Everything else works as-is.
+// Upload alongside index.html. FORM_ENDPOINT in index.html points here.
+//
+// Telegram alerts need credentials from subscribe-config.php (same folder,
+// one-time manual upload via File Manager — never committed to git):
+//   define('WL_BOT_TOKEN', '...');
+//   define('WL_CHAT_ID', '...');
+// Without it, signups are still saved to CSV, just without Telegram alerts.
 
-// 1) Telegram bot token (same bot you use for cron reports)
-define('TELEGRAM_BOT_TOKEN', 'PASTE_BOT_TOKEN_HERE');
-// 2) Chat ID that should receive the signup alert (group ID, usually negative)
-define('TELEGRAM_CHAT_ID', 'PASTE_CHAT_ID_HERE');
-// Set false if you only want the CSV without Telegram alerts
-define('NOTIFY_TELEGRAM', true);
-// Where signups are stored (same folder; download it periodically)
 define('CSV_FILE', __DIR__ . '/waitlist.csv');
+$config = __DIR__ . '/subscribe-config.php';
+if (file_exists($config)) {
+    include $config;
+}
 
 header('Content-Type: application/json');
 
@@ -39,18 +41,22 @@ if (file_exists(CSV_FILE)) {
 if (!$exists) {
     $fp = fopen(CSV_FILE, 'a');
     if ($fp) {
-        fputcsv($fp, [$email, gmdate('Y-m-d H:i:s')]);
+        // lock so concurrent signups can't corrupt the file
+        if (flock($fp, LOCK_EX)) {
+            fputcsv($fp, [$email, gmdate('Y-m-d H:i:s')]);
+            flock($fp, LOCK_UN);
+        }
         fclose($fp);
     }
-    if (NOTIFY_TELEGRAM && TELEGRAM_BOT_TOKEN !== 'PASTE_BOT_TOKEN_HERE') {
-        $ch = curl_init('https://api.telegram.org/bot' . TELEGRAM_BOT_TOKEN . '/sendMessage');
+    if (defined('WL_BOT_TOKEN') && defined('WL_CHAT_ID')) {
+        $ch = curl_init('https://api.telegram.org/bot' . WL_BOT_TOKEN . '/sendMessage');
         curl_setopt_array($ch, [
             CURLOPT_POST => true,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT => 10,
             CURLOPT_POSTFIELDS => [
-                'chat_id' => TELEGRAM_CHAT_ID,
-                'text' => "Foreman waitlist: new signup\n" . $email,
+                'chat_id' => WL_CHAT_ID,
+                'text' => "[Foreman] new waitlist signup\n" . $email,
             ],
         ]);
         curl_exec($ch);

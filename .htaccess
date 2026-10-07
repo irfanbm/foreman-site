@@ -1,0 +1,14 @@
+# Protect the waitlist CSV and the Telegram config from public download.
+# subscribe.php writes waitlist.csv into this same public folder; without this,
+# anyone could fetch https://foreman.grafisify.com/waitlist.csv and read every signup email.
+# subscribe-config.php holds the Telegram bot token — same treatment.
+# Works on Apache 2.2, 2.4, and LiteSpeed (most Indonesian shared hosts).
+<FilesMatch "^(waitlist\.csv|subscribe-config\.php)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order Allow,Deny
+        Deny from all
+    </IfModule>
+</FilesMatch>

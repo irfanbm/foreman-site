@@ -2,4 +2,6 @@
 waitlist.csv
 # Single-file preview build (regenerable, not deployed)
 foreman-shift-report.html
+# Waitlist Telegram config (holds bot token — upload manually, never commit)
+subscribe-config.php
 .DS_Store

@@ -20,8 +20,10 @@ hosted at `foreman.grafisify.com`.
 3. Add 4 repo secrets (Settings -> Secrets and variables -> Actions):
    `FTP_HOST`, `FTP_USERNAME`, `FTP_PASSWORD`, `FTP_SERVER_DIR`
    (e.g. `/public_html/foreman/`).
-4. Fill in `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` in
-   `subscribe.php`, push, and the waitlist goes live.
+4. Telegram alerts: upload `subscribe-config.php` once via File Manager
+   (it holds the bot token — gitignored, never committed). Without it the
+   form still saves to CSV, just without Telegram alerts.
+5. `.htaccess` blocks public download of `waitlist.csv` and the config.
 
 ## Files
 
