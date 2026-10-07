@@ -143,6 +143,9 @@
   .hero.loaded .panel .prow { animation: row-in 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) backwards; }
   .hero.settled .panel .prow { animation: none; }
   @keyframes row-in { from { opacity: 0; transform: translateX(14px); } }
+  /* live run simulation: log rows stream in like a real run in progress */
+  .hero.loaded .panel .prow.live-in { animation: live-row-in 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) backwards; }
+  @keyframes live-row-in { from { opacity: 0; transform: translateX(14px); } }
   .hero::after {
     content: ""; position: absolute; inset: 0; pointer-events: none;
     background: radial-gradient(ellipse 90% 60% at 50% 0%, rgba(255, 90, 31, 0.07), transparent 65%);
@@ -693,7 +696,7 @@
       wis.forEach(function (wi, i) {
         wi.style.transitionDelay = (0.15 + i * 0.07) + "s";
       });
-      var rows = hero.querySelectorAll(".panel .prow");
+      var rows = hero.querySelectorAll(".panel .tabpane:not(#t-log) .prow");
       rows.forEach(function (r, i) {
         r.style.animationDelay = (0.4 + (i % 8) * 0.09) + "s";
       });
@@ -705,6 +708,57 @@
     }, 80);
     window.addEventListener("resize", function () { size(); if (reduceMotion) frame(); });
     document.addEventListener("visibilitychange", function () { if (!document.hidden && !reduceMotion) frame(); });
+  })();
+
+  /* live run simulation: the log pane streams rows like a real run in
+     progress — one row at a time, footer stats ticking along, then the
+     next run number starts a fresh cycle. Pauses off-screen / hidden tab. */
+  (function livePanel() {
+    var pane = document.getElementById("t-log");
+    if (!pane || reduceMotion) return;
+    var panel = pane.closest(".panel");
+    var rows = Array.prototype.slice.call(pane.querySelectorAll(".prow")).map(function (el) {
+      return { html: el.innerHTML, retry: !!el.querySelector(".ps.retry") };
+    });
+    if (!rows.length) return;
+    var foot = panel.querySelector(".panel-foot");
+    var runTab = document.getElementById("tab-t-log");
+    var runNo = 4821;
+    var timers = [];
+    var visible = true;
+    if ("IntersectionObserver" in window) {
+      new IntersectionObserver(function (entries) {
+        visible = entries[0].isIntersecting;
+      }, { threshold: 0.1 }).observe(panel);
+    }
+    function later(fn, ms) { timers.push(setTimeout(fn, ms)); }
+    function renderFoot(retries, mins) {
+      foot.innerHTML = "<span><b>" + retries + "</b> retry</span>" +
+        "<span><b>0</b> duplicates posted</span>" +
+        "<span><b>" + mins + "</b> min</span>";
+    }
+    function playCycle() {
+      timers.forEach(clearTimeout); timers = [];
+      pane.innerHTML = "";
+      runNo += 1;
+      if (runTab) runTab.textContent = "run #" + runNo + " \u00b7 log";
+      var retries = 0, mins = 0, i = 0;
+      renderFoot(0, 0);
+      (function step() {
+        if (!visible || document.hidden) { later(step, 1000); return; }
+        if (i >= rows.length) { later(playCycle, 6000); return; }
+        var row = rows[i++];
+        var div = document.createElement("div");
+        div.className = "prow live-in";
+        div.innerHTML = row.html;
+        pane.appendChild(div);
+        if (row.retry) retries += 1;
+        mins += 3;
+        renderFoot(retries, mins);
+        later(step, 2400);
+      })();
+    }
+    later(playCycle, 900);
   })();
 
   /* scroll reveal */
