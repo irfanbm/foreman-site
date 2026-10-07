@@ -149,12 +149,12 @@
   .orb-a {
     width: 440px; height: 440px; top: -140px; right: -100px;
     background: radial-gradient(circle, rgba(255, 90, 31, 0.10), transparent 65%);
-    filter: blur(40px); animation: drift-a 26s ease-in-out infinite alternate;
+    animation: drift-a 26s ease-in-out infinite alternate;
   }
   .orb-b {
     width: 360px; height: 360px; bottom: -160px; left: -120px;
     background: radial-gradient(circle, rgba(255, 60, 20, 0.08), transparent 65%);
-    filter: blur(40px); animation: drift-b 34s ease-in-out infinite alternate;
+    animation: drift-b 34s ease-in-out infinite alternate;
   }
   @keyframes drift-a { to { transform: translate(-90px, 70px); } }
   @keyframes drift-b { to { transform: translate(80px, -60px); } }
@@ -707,9 +707,16 @@
           }
         }
       }
-      if (!reduceMotion && !document.hidden) requestAnimationFrame(frame);
+      if (!reduceMotion && !document.hidden && heroVisible) {
+        running = true;
+        requestAnimationFrame(frame);
+      } else {
+        running = false;
+      }
     }
-    frame();
+    var running = false;
+    var heroVisible = true;
+    function kick() { if (!running && !document.hidden) frame(); }
     /* headline word-stagger + panel row cascade (one-time entrance) */
     function wrapWords(container) {
       var out = [];
@@ -750,9 +757,17 @@
       hero.classList.add("loaded");
       /* after the entrance, rows must appear instantly on tab switches */
       setTimeout(function () { hero.classList.add("settled"); }, 1800);
+      if (window.__foremanPanelStart) window.__foremanPanelStart();
     };
-    window.addEventListener("resize", function () { size(); if (reduceMotion) frame(); });
-    document.addEventListener("visibilitychange", function () { if (!document.hidden && !reduceMotion) frame(); });
+    if ("IntersectionObserver" in window) {
+      new IntersectionObserver(function (entries) {
+        heroVisible = entries[0].isIntersecting;
+        kick();
+      }, { threshold: 0 }).observe(hero);
+    }
+    frame();
+    window.addEventListener("resize", function () { size(); kick(); });
+    document.addEventListener("visibilitychange", kick);
   })();
 
   /* live run simulation: the log pane streams rows like a real run in
@@ -835,7 +850,12 @@
         later(step, 2400);
       })();
     }
-    later(playCycle, 900);
+    /* clear immediately while the veil is still up (invisible); lock the
+       pane height so streaming rows never reflow the hero */
+    pane.style.minHeight = pane.offsetHeight + "px";
+    pane.innerHTML = "";
+    renderFoot(0, 0);
+    window.__foremanPanelStart = playCycle;
   })();
 
   /* loading veil: hold the skeleton until the hero fonts are actually
@@ -851,7 +871,10 @@
         var x = document.getElementById("veil");
         if (x) x.remove();
       }, 600);
-      if (window.__foremanHeroReady) window.__foremanHeroReady();
+      /* let the veil finish fading before the entrance starts */
+      setTimeout(function () {
+        if (window.__foremanHeroReady) window.__foremanHeroReady();
+      }, 320);
     }
     var fallback = setTimeout(go, 2600);
     function ready() { clearTimeout(fallback); go(); }

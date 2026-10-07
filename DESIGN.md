@@ -74,10 +74,16 @@ ENERGY 2 / RHYTHM 2 / MOTION 2.
 ## Loading
 - Fonts are preloaded; a skeleton veil holds the viewport until the
   hero fonts actually load (explicit `document.fonts.load()`, hard
-  fallback 2.6s), then fades and the hero entrance starts. This kills
-  the FOUT reflow glitch where the word-stagger measured fallback-font
-  widths. No-JS gets no veil. Parallax was deliberately skipped: it
-  adds render work, it doesn't fix load weight.
+  fallback 2.6s), then fades; the entrance starts 320ms later so the
+  two never overlap. This kills the FOUT reflow glitch where the
+  word-stagger measured fallback-font widths. No-JS gets no veil.
+- The live panel clears its static rows while the veil is still up and
+  locks the pane's min-height, so the streaming simulation never pops
+  or reflows the hero. Parallax was deliberately skipped: it adds
+  render work, it doesn't fix load weight.
+- Perf: orbs use plain radial gradients (no blur filter — blur on
+  large animated layers was the main jank source); the constellation
+  loop pauses off-screen / in hidden tabs via a guarded rAF kick.
 
 ## Copy rules
 
