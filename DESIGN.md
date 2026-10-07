@@ -52,9 +52,9 @@ ENERGY 2 / RHYTHM 2 / MOTION 2.
 ## Motion
 
 - Hero is the alive part (enowx-like): a full-bleed constellation (denser
-  node field), two slow-drifting ambient orbs, and a warm glow that follows
-  the cursor with lerped motion; the constellation parallaxes gently
-  against it. Dots repel the cursor, nearby lines warm up.
+  node field) plus two slow-drifting ambient orbs. The mouse only plays
+  with the nodes: they repel the cursor and nearby lines warm up.
+  (Cursor-following glow was tried and removed per irfan — nodes only.)
 - Headline enters word by word (one-time stagger); panel rows cascade in
   on load, then appear instantly on later tab switches.
 - Cards lift 4px on hover and the number badge fills accent. Purpose:
