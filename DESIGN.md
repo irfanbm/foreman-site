@@ -40,8 +40,9 @@ not a pixel clone.
 
 1. Pill nav. 2. Hero split: headline + CTAs left, tabbed run-log
    panel right, constellation canvas behind. 3. Marquee ticker.
-4. WHAT IS INSIDE: 4 numbered gate cards. 5. THE LOG: three incident
-   rows (02:14, 03:40, 05:12) with hairline dividers. 6. HOW IT IS
+4. WHAT IS INSIDE: 4 numbered gate cards. 5. THE LOG: tabbed sample
+   jobs (content-fleet, research-digest, support-triage), 3 incident
+   rows each, hairline dividers. 6. HOW IT IS
    STAFFED: 3 layer cards + MCP config code block. 7. GET COVERAGE:
    waitlist form. 8. Two-column footer.
 

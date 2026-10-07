@@ -216,6 +216,9 @@
   }
   .tabpane { display: none; padding: 10px 14px 8px; }
   .tabpane.active { display: block; }
+  /* log section tabs sit flush above the entries */
+  #log .tabs { margin: 36px 0 2px; }
+  #log .tabpane { padding: 0; }
   .prow {
     display: grid; grid-template-columns: 54px 1fr auto; gap: 14px; align-items: center;
     padding: 12px 10px; border-bottom: 1px dashed rgba(255, 255, 255, 0.07);
@@ -504,9 +507,14 @@
   <section class="block" id="log" aria-labelledby="log-h">
     <div class="wrap">
       <p class="kicker rv">THE LOG</p>
-      <h2 class="sec rv" id="log-h">One night, <b>three entries.</b></h2>
-      <p class="sec-sub rv">Scheduling an agent is the easy part. Every failure below happened to a real content fleet, and none of them raised an error.</p>
-      <div>
+      <h2 class="sec rv" id="log-h">One night, <b>three jobs.</b></h2>
+      <p class="sec-sub rv">Scheduling an agent is the easy part. Pick a job — every entry below is the kind of failure that never raises an error.</p>
+      <div class="tabs rv" role="tablist" aria-label="Sample jobs">
+        <button class="tab" role="tab" aria-selected="true" data-tab="job-fleet" id="tab-job-fleet">content-fleet</button>
+        <button class="tab" role="tab" aria-selected="false" data-tab="job-digest" id="tab-job-digest">research-digest</button>
+        <button class="tab" role="tab" aria-selected="false" data-tab="job-triage" id="tab-job-triage">support-triage</button>
+      </div>
+      <div class="tabpane active" id="job-fleet" role="tabpanel" aria-labelledby="tab-job-fleet">
         <div class="logrow rv">
           <div class="when"><b>02:14</b>INCIDENT · RETRY</div>
           <div>
@@ -526,6 +534,52 @@
           <div>
             <h3>Instagram authorization had lapsed. <span class="ac">Nothing errored.</span></h3>
             <p>Foreman health-checks every channel before the run. At 05:12 it found the Instagram channel down and reported it, instead of letting the 06:00 post <b>silently never go out</b>. The channel was reconnected before breakfast. The audience never noticed.</p>
+          </div>
+        </div>
+      </div>
+      <div class="tabpane" id="job-digest" role="tabpanel" aria-labelledby="tab-job-digest">
+        <div class="logrow rv">
+          <div class="when"><b>04:58</b>SOURCE · TIMEOUT</div>
+          <div>
+            <h3>Two sources timed out. <span class="ac">The digest shipped anyway.</span></h3>
+            <p>The 04:58 fetch hit timeouts on two sources. Foreman retried with backoff, then published with 8 of 10 — and <b>listed the two it skipped</b>. A partial report beats a missing one, as long as the gap is on the record.</p>
+          </div>
+        </div>
+        <div class="logrow rv">
+          <div class="when"><b>05:12</b>GATE · HELD</div>
+          <div>
+            <h3>Two stories were yesterday's news. <span class="ac">Held at the gate.</span></h3>
+            <p>The draft included two stories the digest already covered. The dedup gate held them <b>before the summary was written</b> — the researcher never re-read what they already knew.</p>
+          </div>
+        </div>
+        <div class="logrow rv">
+          <div class="when"><b>05:31</b>REPORT · SENT</div>
+          <div>
+            <h3>Posted before standup. <span class="ac">Nothing to fix.</span></h3>
+            <p>Digest posted to #research at 05:31, sources linked. <b>18 minutes, zero retries, zero duplicates.</b> Most nights should look like this.</p>
+          </div>
+        </div>
+      </div>
+      <div class="tabpane" id="job-triage" role="tabpanel" aria-labelledby="tab-job-triage">
+        <div class="logrow rv">
+          <div class="when"><b>01:20</b>TRIAGE · QUIET</div>
+          <div>
+            <h3>34 threads. <span class="ac">Nothing on fire.</span></h3>
+            <p>34 new threads classified overnight. 31 were FAQs the bot answered, 3 went to the right queue. <b>No page, no noise.</b></p>
+          </div>
+        </div>
+        <div class="logrow rv">
+          <div class="when"><b>01:44</b>ESCALATION · HELD</div>
+          <div>
+            <h3>One angry thread. <span class="ac">Held for a human.</span></h3>
+            <p>A billing complaint with chargeback language was drafted, not sent. Foreman held it for review <b>because money was mentioned</b> — some calls are not the agent's to make.</p>
+          </div>
+        </div>
+        <div class="logrow rv">
+          <div class="when"><b>02:02</b>CHECK · OK</div>
+          <div>
+            <h3>All channels green. <span class="ac">Reported anyway.</span></h3>
+            <p>Health check passed on all four channels. The quiet report went out regardless — <b>silence is also a status.</b></p>
           </div>
         </div>
       </div>
@@ -902,43 +956,45 @@
     els.forEach(function (el) { el.classList.add("in"); });
   }
 
-  /* hero panel tabs + sliding indicator */
-  var tabs = document.querySelectorAll(".tab");
-  var tablist = document.querySelector(".tabs");
-  var ind = document.createElement("span");
-  ind.className = "tab-ind";
-  ind.setAttribute("aria-hidden", "true");
-  tablist.appendChild(ind);
-  function placeInd(tab) {
-    ind.style.left = tab.offsetLeft + "px";
-    ind.style.width = tab.offsetWidth + "px";
-  }
-  function selectTab(tab) {
-    tabs.forEach(function (t) {
-      t.setAttribute("aria-selected", "false");
-      document.getElementById(t.dataset.tab).classList.remove("active");
+  /* tabs + sliding indicators (hero panel, log section) */
+  function placeAllInds() {
+    Array.prototype.forEach.call(document.querySelectorAll(".tabs"), function (tablist) {
+      var cur = tablist.querySelector('.tab[aria-selected="true"]');
+      var ind = tablist.querySelector(".tab-ind");
+      if (cur && ind) {
+        ind.style.left = cur.offsetLeft + "px";
+        ind.style.width = cur.offsetWidth + "px";
+      }
     });
-    tab.setAttribute("aria-selected", "true");
-    document.getElementById(tab.dataset.tab).classList.add("active");
-    placeInd(tab);
   }
-  tabs.forEach(function (tab) {
-    tab.addEventListener("click", function () { selectTab(tab); });
+  Array.prototype.forEach.call(document.querySelectorAll(".tabs"), function (tablist) {
+    var tabs = tablist.querySelectorAll(".tab");
+    var ind = document.createElement("span");
+    ind.className = "tab-ind";
+    ind.setAttribute("aria-hidden", "true");
+    tablist.appendChild(ind);
+    Array.prototype.forEach.call(tabs, function (tab) {
+      tab.addEventListener("click", function () {
+        Array.prototype.forEach.call(tabs, function (t) {
+          t.setAttribute("aria-selected", "false");
+          var p = document.getElementById(t.dataset.tab);
+          if (p) p.classList.remove("active");
+        });
+        tab.setAttribute("aria-selected", "true");
+        var pane = document.getElementById(tab.dataset.tab);
+        if (pane) pane.classList.add("active");
+        placeAllInds();
+      });
+    });
   });
-  window.addEventListener("resize", function () {
-    var cur = document.querySelector('.tab[aria-selected="true"]');
-    if (cur) placeInd(cur);
-  });
-  if (!reduceMotion) {
-    /* wait a tick so fonts/layout settle before measuring */
-    setTimeout(function () {
-      var cur = document.querySelector('.tab[aria-selected="true"]');
-      if (cur) placeInd(cur);
-    }, 60);
-  } else {
-    var cur0 = document.querySelector('.tab[aria-selected="true"]');
-    if (cur0) placeInd(cur0);
-  }
+  window.addEventListener("resize", placeAllInds);
+  placeAllInds();
+  /* re-measure once the hero entrance starts (fonts are final by then) */
+  var _heroReadyTabs = window.__foremanHeroReady;
+  window.__foremanHeroReady = function () {
+    if (_heroReadyTabs) _heroReadyTabs();
+    placeAllInds();
+  };
 
   /* copy MCP config */
   var copyBtn = document.getElementById("copyBtn");
