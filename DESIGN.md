@@ -51,15 +51,20 @@ ENERGY 2 / RHYTHM 2 / MOTION 2.
 
 ## Motion
 
-- Constellation drifts slowly; dots gently repel the cursor and nearby
-  lines warm up. Purpose: the hero is an agent graph you can touch.
+- Hero is the alive part (enowx-like): a full-bleed constellation (denser
+  node field), two slow-drifting ambient orbs, and a warm glow that follows
+  the cursor with lerped motion; the constellation parallaxes gently
+  against it. Dots repel the cursor, nearby lines warm up.
+- Headline enters word by word (one-time stagger); panel rows cascade in
+  on load, then appear instantly on later tab switches.
 - Cards lift 4px on hover and the number badge fills accent. Purpose:
   the gates are the product; hover says "these are worth reading".
 - Log rows highlight on hover, timestamp turns accent. Panel rows too.
 - Tab indicator slides between tabs (layout-measured, eased).
 - Marquee pauses on hover. Primary buttons gain a warm shadow on hover.
-- No pulses, no endless loops besides the reference's marquee.
-  Respects prefers-reduced-motion (canvas static, marquee off).
+- No pulses, no endless loops besides ambient drift + the reference's
+  marquee. Respects prefers-reduced-motion (canvas static, glow/orbs off,
+  entrances instant).
 
 ## Copy rules
 

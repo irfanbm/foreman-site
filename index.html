@@ -121,7 +121,35 @@
 
   /* ---------- hero ---------- */
   .hero { position: relative; padding: 110px 0 90px; overflow: hidden; }
-  #stars { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  #stars { position: absolute; inset: -24px; width: calc(100% + 48px); height: calc(100% + 48px); pointer-events: none; will-change: transform; }
+  .glow {
+    position: absolute; width: 560px; height: 560px; left: 0; top: 0;
+    background: radial-gradient(circle, rgba(255, 90, 31, 0.13), transparent 65%);
+    pointer-events: none; opacity: 0; transition: opacity 0.7s ease;
+    will-change: transform;
+  }
+  .hero.glow-on .glow { opacity: 1; }
+  .orb { position: absolute; border-radius: 50%; pointer-events: none; }
+  .orb-a {
+    width: 440px; height: 440px; top: -140px; right: -100px;
+    background: radial-gradient(circle, rgba(255, 90, 31, 0.10), transparent 65%);
+    filter: blur(40px); animation: drift-a 26s ease-in-out infinite alternate;
+  }
+  .orb-b {
+    width: 360px; height: 360px; bottom: -160px; left: -120px;
+    background: radial-gradient(circle, rgba(255, 60, 20, 0.08), transparent 65%);
+    filter: blur(40px); animation: drift-b 34s ease-in-out infinite alternate;
+  }
+  @keyframes drift-a { to { transform: translate(-90px, 70px); } }
+  @keyframes drift-b { to { transform: translate(80px, -60px); } }
+  /* headline word-stagger entrance (one-time, on load) */
+  .hero h1 .w { display: inline-block; overflow: hidden; vertical-align: bottom; padding-bottom: 0.08em; margin-bottom: -0.08em; }
+  .hero h1 .wi { display: inline-block; transform: translateY(115%); }
+  .hero.loaded h1 .wi { transform: none; transition: transform 0.85s cubic-bezier(0.2, 0.7, 0.2, 1); }
+  /* panel rows cascade in on load */
+  .hero.loaded .panel .prow { animation: row-in 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) backwards; }
+  .hero.settled .panel .prow { animation: none; }
+  @keyframes row-in { from { opacity: 0; transform: translateX(14px); } }
   .hero::after {
     content: ""; position: absolute; inset: 0; pointer-events: none;
     background: radial-gradient(ellipse 90% 60% at 50% 0%, rgba(255, 90, 31, 0.07), transparent 65%);
@@ -285,6 +313,9 @@
     .rv { opacity: 1; transform: none; }
     .ticker-track { animation: none; }
     html { scroll-behavior: auto; }
+    .glow, .orb { display: none; }
+    .hero h1 .wi { transform: none; }
+    .hero.loaded .panel .prow { animation: none; }
   }
 
   @media (max-width: 960px) {
@@ -342,10 +373,13 @@
 
 <header class="hero" id="top">
   <canvas id="stars" aria-hidden="true"></canvas>
+  <div class="orb orb-a" aria-hidden="true"></div>
+  <div class="orb orb-b" aria-hidden="true"></div>
+  <div class="glow" id="glow" aria-hidden="true"></div>
   <div class="wrap hero-grid">
     <div>
       <p class="kicker rv">RELIABILITY FOR SCHEDULED AGENTS</p>
-      <h1 class="rv">The night shift, <b>documented.</b></h1>
+      <h1>The night shift, <b>documented.</b></h1>
       <p class="sub rv">Foreman is the reliability layer for scheduled AI agents. Dedup gates, retries that resume from the last checkpoint, silent-failure detection, and a run report sent wherever you already look.</p>
       <div class="hero-cta rv">
         <a class="btn btn-primary" href="#coverage">Request coverage</a>
@@ -567,22 +601,32 @@
   (function stars() {
     var cv = document.getElementById("stars");
     var hero = cv.parentElement;
+    var glow = document.getElementById("glow");
     var mouse = { x: -9999, y: -9999 };
+    var gx = 0, gy = 0, tx = 0, ty = 0, glowInit = false;
+    var cvx = 0, cvy = 0, hw = 1, hh = 1;
     hero.addEventListener("pointermove", function (ev) {
       var r = cv.getBoundingClientRect();
+      var hr = hero.getBoundingClientRect();
       mouse.x = ev.clientX - r.left;
       mouse.y = ev.clientY - r.top;
+      tx = ev.clientX - hr.left;
+      ty = ev.clientY - hr.top;
+      if (!glowInit) { gx = tx; gy = ty; glowInit = true; }
+      hero.classList.add("glow-on");
     });
     hero.addEventListener("pointerleave", function () {
       mouse.x = -9999; mouse.y = -9999;
+      hero.classList.remove("glow-on");
     });
     function size() {
-      cv.width = hero.offsetWidth;
-      cv.height = hero.offsetHeight;
+      cv.width = cv.offsetWidth;
+      cv.height = cv.offsetHeight;
+      hw = hero.offsetWidth; hh = hero.offsetHeight;
     }
     size();
     var ctx = cv.getContext("2d");
-    var N = Math.min(90, Math.floor(cv.width / 16));
+    var N = Math.min(130, Math.floor(cv.width / 12));
     var pts = [];
     for (var i = 0; i < N; i++) {
       pts.push({
@@ -620,7 +664,7 @@
         for (k = j + 1; k < pts.length; k++) {
           dx = pts[j].x - pts[k].x; dy = pts[j].y - pts[k].y;
           d = Math.sqrt(dx * dx + dy * dy);
-          if (d < 130) {
+          if (d < 150) {
             /* lines near the cursor glow a little warmer */
             var mx = (pts[j].x + pts[k].x) / 2 - mouse.x;
             var my = (pts[j].y + pts[k].y) / 2 - mouse.y;
@@ -629,15 +673,66 @@
             ctx.beginPath();
             ctx.moveTo(pts[j].x, pts[j].y);
             ctx.lineTo(pts[k].x, pts[k].y);
-            ctx.strokeStyle = "rgba(255,90,31," + (0.10 * (1 - d / 130) + boost).toFixed(3) + ")";
+            ctx.strokeStyle = "rgba(255,90,31," + (0.12 * (1 - d / 150) + boost).toFixed(3) + ")";
             ctx.lineWidth = 1;
             ctx.stroke();
           }
         }
       }
+      if (!reduceMotion) {
+        /* glow follows the cursor; canvas drifts against it (parallax) */
+        gx += (tx - gx) * 0.08;
+        gy += (ty - gy) * 0.08;
+        glow.style.transform = "translate(" + Math.round(gx - 280) + "px," + Math.round(gy - 280) + "px)";
+        var on = hero.classList.contains("glow-on");
+        var nx = on ? (tx / hw - 0.5) : 0;
+        var ny = on ? (ty / hh - 0.5) : 0;
+        cvx += ((-nx * 14) - cvx) * 0.06;
+        cvy += ((-ny * 14) - cvy) * 0.06;
+        cv.style.transform = "translate(" + cvx.toFixed(1) + "px," + cvy.toFixed(1) + "px)";
+      }
       if (!reduceMotion && !document.hidden) requestAnimationFrame(frame);
     }
     frame();
+    /* headline word-stagger + panel row cascade (one-time entrance) */
+    function wrapWords(container) {
+      var out = [];
+      Array.prototype.slice.call(container.childNodes).forEach(function (node) {
+        if (node.nodeType === 3) {
+          node.textContent.split(/(\s+)/).forEach(function (part) {
+            if (!part) return;
+            if (/^\s+$/.test(part)) {
+              container.insertBefore(document.createTextNode(" "), node);
+            } else {
+              var w = document.createElement("span"); w.className = "w";
+              var wi = document.createElement("span"); wi.className = "wi";
+              wi.textContent = part; w.appendChild(wi);
+              container.insertBefore(w, node); out.push(wi);
+            }
+          });
+          container.removeChild(node);
+        } else if (node.nodeType === 1) {
+          out = out.concat(wrapWords(node));
+        }
+      });
+      return out;
+    }
+    var h1 = hero.querySelector("h1");
+    if (h1 && !reduceMotion) {
+      var wis = wrapWords(h1);
+      wis.forEach(function (wi, i) {
+        wi.style.transitionDelay = (0.15 + i * 0.07) + "s";
+      });
+      var rows = hero.querySelectorAll(".panel .prow");
+      rows.forEach(function (r, i) {
+        r.style.animationDelay = (0.4 + (i % 8) * 0.09) + "s";
+      });
+    }
+    setTimeout(function () {
+      hero.classList.add("loaded");
+      /* after the entrance, rows must appear instantly on tab switches */
+      setTimeout(function () { hero.classList.add("settled"); }, 1800);
+    }, 80);
     window.addEventListener("resize", function () { size(); if (reduceMotion) frame(); });
     document.addEventListener("visibilitychange", function () { if (!document.hidden && !reduceMotion) frame(); });
   })();
