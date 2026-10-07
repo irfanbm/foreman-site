@@ -57,9 +57,10 @@ ENERGY 2 / RHYTHM 2 / MOTION 2.
   (Cursor-following glow was tried and removed per irfan — nodes only.)
 - Headline enters word by word (one-time stagger); panel rows cascade in
   on load, then appear instantly on later tab switches.
-- The run-log panel simulates a live run: rows stream in one by one,
-  footer stats (retries, elapsed minutes) tick along, then the next run
-  number starts a fresh cycle. Pauses off-screen or in a hidden tab;
+- The run-log panel simulates a live run: rows stream in one by one with
+  the status text typing out like a terminal line (blinking caret while
+  typing), footer minutes tick as a fast timelapse to 18, then the next
+  run number starts a fresh cycle. Pauses off-screen or in a hidden tab;
   static rows when prefers-reduced-motion.
 - Cards lift 4px on hover and the number badge fills accent. Purpose:
   the gates are the product; hover says "these are worth reading".

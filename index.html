@@ -146,6 +146,14 @@
   /* live run simulation: log rows stream in like a real run in progress */
   .hero.loaded .panel .prow.live-in { animation: live-row-in 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) backwards; }
   @keyframes live-row-in { from { opacity: 0; transform: translateX(14px); } }
+  /* typing caret on the streaming status text (removed when typing ends) */
+  .prow .s.typing::after {
+    content: "\258d";
+    color: var(--accent);
+    margin-left: 2px;
+    animation: caret-blink 0.8s steps(1) infinite;
+  }
+  @keyframes caret-blink { 50% { opacity: 0; } }
   .hero::after {
     content: ""; position: absolute; inset: 0; pointer-events: none;
     background: radial-gradient(ellipse 90% 60% at 50% 0%, rgba(255, 90, 31, 0.07), transparent 65%);
@@ -718,13 +726,21 @@
     if (!pane || reduceMotion) return;
     var panel = pane.closest(".panel");
     var rows = Array.prototype.slice.call(pane.querySelectorAll(".prow")).map(function (el) {
-      return { html: el.innerHTML, retry: !!el.querySelector(".ps.retry") };
+      var ps = el.querySelector(".ps");
+      return {
+        t: el.querySelector(".t").textContent,
+        s: el.querySelector(".s").textContent,
+        ps: ps.textContent,
+        psClass: ps.className,
+        retry: !!el.querySelector(".ps.retry")
+      };
     });
     if (!rows.length) return;
     var foot = panel.querySelector(".panel-foot");
     var runTab = document.getElementById("tab-t-log");
     var runNo = 4821;
     var timers = [];
+    var minsTimer = null;
     var visible = true;
     if ("IntersectionObserver" in window) {
       new IntersectionObserver(function (entries) {
@@ -737,24 +753,48 @@
         "<span><b>0</b> duplicates posted</span>" +
         "<span><b>" + mins + "</b> min</span>";
     }
+    /* status text types out like a live terminal line */
+    function typeText(el, text) {
+      var i = 0;
+      el.textContent = "";
+      el.classList.add("typing");
+      (function tick() {
+        if (!visible || document.hidden) { later(tick, 300); return; }
+        i += 1;
+        el.textContent = text.slice(0, i);
+        if (i < text.length) { later(tick, 34); }
+        else { el.classList.remove("typing"); }
+      })();
+    }
     function playCycle() {
       timers.forEach(clearTimeout); timers = [];
+      if (minsTimer) { clearInterval(minsTimer); minsTimer = null; }
       pane.innerHTML = "";
       runNo += 1;
       if (runTab) runTab.textContent = "run #" + runNo + " \u00b7 log";
       var retries = 0, mins = 0, i = 0;
       renderFoot(0, 0);
+      /* timelapse clock: 18 minutes fly by while the run streams */
+      minsTimer = setInterval(function () {
+        if (visible && !document.hidden && mins < 18) {
+          mins += 1;
+          renderFoot(retries, mins);
+        }
+      }, 350);
       (function step() {
         if (!visible || document.hidden) { later(step, 1000); return; }
         if (i >= rows.length) { later(playCycle, 6000); return; }
         var row = rows[i++];
         var div = document.createElement("div");
         div.className = "prow live-in";
-        div.innerHTML = row.html;
+        div.innerHTML = '<span class="t mono"></span><span class="s"></span><span class="ps"></span>';
+        div.querySelector(".t").textContent = row.t;
+        var psEl = div.querySelector(".ps");
+        psEl.className = row.psClass;
+        psEl.textContent = row.ps;
         pane.appendChild(div);
-        if (row.retry) retries += 1;
-        mins += 3;
-        renderFoot(retries, mins);
+        typeText(div.querySelector(".s"), row.s);
+        if (row.retry) { retries += 1; renderFoot(retries, mins); }
         later(step, 2400);
       })();
     }
